@@ -72,6 +72,9 @@ class ChipState {
 /// Currently the chip animation cannot be configured. PRs are welcome to
 /// introduce such options.
 class SortedChipsRow extends StatefulWidget {
+
+  _SortedChipsRowState sortedChipRow;
+
   static int _defaultComparator(ChipState a, ChipState b) {
     if (a.isEnabled != b.isEnabled) {
       return (a.isEnabled ? -1 : 1);
@@ -80,22 +83,38 @@ class SortedChipsRow extends StatefulWidget {
     }
   }
 
-  static bool _defaultOnPress(ChipState state) =>
-      !state._isEnabled;
+  static bool _defaultOnPress(ChipState state) => !state._isEnabled;
+
+   static Function _defaultOnLoad() {
+    print("TESTE C");
+   }
+
+  int getSizedChipsSelected() => sortedChipRow.getSizeChipsSelected();
+  bool enablesChips(List<String> labels) => sortedChipRow.enableChip(labels);
+
 
   final List<ChipSpec> chips;
   final bool Function(ChipState) onPress;
   final Comparator<ChipState> comparator;
 
+//  final Function onLoadChipState;
+
+  final bool multiSelect;
+
+  final Function onLoadChipState;
+
   /// Creates a SortedChipsRow widget.
   SortedChipsRow(
       {this.chips = const [],
       this.onPress = _defaultOnPress,
+      this.multiSelect = true,
+      this.onLoadChipState,
       this.comparator = _defaultComparator});
 
   @override
   _SortedChipsRowState createState() {
-    return new _SortedChipsRowState();
+    sortedChipRow = new _SortedChipsRowState();
+    return sortedChipRow;
   }
 }
 
@@ -109,6 +128,8 @@ class _SortedChipsRowState extends State<SortedChipsRow>
   double _totalWidth = 0.0;
   AnimationController _animationController;
 
+  bool chipsLoaded = false;
+
   @override
   void initState() {
     super.initState();
@@ -116,6 +137,8 @@ class _SortedChipsRowState extends State<SortedChipsRow>
     this.widget.chips.asMap().forEach((index, spec) {
       _chipStates.add(ChipState(spec: spec, initialIndex: index));
     });
+
+    print("TESTE A");
 
     _chipsAnimations.addAll(List.filled(
         this.widget.chips.length, AlwaysStoppedAnimation(RelativeRect.fill)));
@@ -127,6 +150,8 @@ class _SortedChipsRowState extends State<SortedChipsRow>
     _animationController.addListener(() {
       setState(() {});
     });
+
+    this.widget.onLoadChipState();
   }
 
   @override
@@ -140,7 +165,17 @@ class _SortedChipsRowState extends State<SortedChipsRow>
     assert(chipState.initialIndex == chipIndex);
 
     bool nextEnabled = this.widget.onPress(chipState);
+
     if (nextEnabled != chipState._isEnabled) {
+
+      if(!widget.multiSelect) {
+        _chipStates.forEach((chip) {
+          if (chip.currentIndex != chipIndex) {
+            _chipStates[chip.currentIndex]._isEnabled = false;
+          }
+        });
+      }
+
       chipState._isEnabled = nextEnabled;
       var sortedStates = List.of(_chipStates)..sort(this.widget.comparator);
       Iterable.generate(sortedStates.length)
@@ -180,6 +215,38 @@ class _SortedChipsRowState extends State<SortedChipsRow>
     this.setState(() {
       this._totalWidth = totalOffset - FIXED_HORIZONTAL_PADDING;
     });
+  }
+
+  bool enableChip(List<String> labels) {
+
+    Text productBaseTextWidget;
+    String chipLabel;
+
+    _chipStates.forEach((chip) {
+      print("CHIP_LABELS=${chip.spec.label}");
+
+      productBaseTextWidget = chip.spec.label;
+      chipLabel = productBaseTextWidget.data;
+
+
+
+      labels.forEach((labels) {
+
+        if(chipLabel == labels) {
+          chip._isEnabled = true;
+        }
+
+      });
+    });
+
+
+
+    return true;
+  }
+
+  int getSizeChipsSelected() {
+    List<ChipState> chipsEnabled = _chipStates.where((chip) => chip._isEnabled).toList();
+    return chipsEnabled.length;
   }
 
   @override
